@@ -10,7 +10,7 @@
 // inventing a cause or an ETA, and says when the next update comes: only
 // once something can actually be verified.
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const line =
@@ -27,9 +27,19 @@ if (size < 1 || size > 160) {
 if (line.trim().length === 0) {
   throw new Error("outage line must not be only white space");
 }
+if (line.includes("\n") || line.includes("\r")) {
+  throw new Error("outage line must be a single line");
+}
 
 // Local runs can point the output elsewhere; the grader uses /output.
 const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
 mkdirSync(outDir, { recursive: true });
-writeFileSync(join(outDir, "entry.txt"), line, "utf8");
+const outPath = join(outDir, "entry.txt");
+writeFileSync(outPath, line, "utf8");
+
+// Verify the write round-trips byte for byte: the gate reads this file,
+// so a partial or altered write must fail loudly here, not in grading.
+if (readFileSync(outPath, "utf8") !== line) {
+  throw new Error(`verification failed: ${outPath} does not match the line`);
+}
 console.log(`wrote ${size}-character outage line to ${join(outDir, "entry.txt")}`);
